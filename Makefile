@@ -102,6 +102,12 @@ endif
 test_environment:
 	$(PYTHON_INTERPRETER) test_environment.py
 
+## Make directories and files for missing data
+build_tree:
+	mkdir -p data/{external,interim,processed,raw}
+	mkdir .config
+	touch .config/{.,.mongo.,.postgres.}env
+
 #################################################################################
 # PROJECT RULES                                                                 #
 #################################################################################
