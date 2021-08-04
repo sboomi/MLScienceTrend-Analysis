@@ -1,7 +1,4 @@
-# local package
--e .
-
-# external requirements
+# List of requirements
 click==7.1.*
 sphinx==4.1.*
 coverage==5.5

@@ -1,0 +1,39 @@
+name: scitrend-analysis
+channels:
+  - conda-forge
+  - defaults
+  # - pytorch
+dependencies:
+  - python==3.9
+  - pytorch
+  - torchvision
+  - torchaudio
+  - cudatoolkit==11.1
+  - notebook
+  - jupyterhub
+  - jupyterlab
+  - beautifulsoup4
+  - requests
+  - pymongo
+  - sqlalchemy
+  - psycopg2
+  - ipympl
+  - ipywidgets
+  - numpy
+  - pandas
+  - scikit-learn
+  - seaborn
+  - matplotlib
+  - statsmodels
+  - sympy
+  - scipy
+  - protobuf
+  - altair
+  - bokeh
+  - streamlit
+  - python-dotenv
+  - coloredlogs
+  - pydantic
+  - mypy
+  - black
+  - tqdm

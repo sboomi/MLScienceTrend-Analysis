@@ -1,0 +1,43 @@
+version: '3.8'
+
+volumes:
+  local_postgres_volume: {}
+  local_mongo_volume: {}
+
+services:
+  notebook:
+    container_name: analysis
+    restart: unless-stopped
+    build:
+      context: ./.docker/notebook
+    volumes:
+      - ./notebooks:/home/jovyan/work
+      - ./data:/home/jovyan/work/data
+    env_file:
+      - ./.config/.env
+      - ./.config/.mongo.env
+      - ./.config/.postgres.env
+    ports:
+      - '8888:8888'
+
+  mongo:
+    container_name: mongo-db
+    restart: always
+    image: mongo:5.0.1
+    expose:
+      - 27017
+    env_file:
+      - ./.config/.mongo.env
+    volumes:
+      - local_mongo_volume:/data/db
+
+  postgres:
+    container_name: postgres-db
+    restart: always
+    image: postgres:13.3
+    env_file:
+      - ./.config/.postgres.env
+    expose:
+      - 5432
+    volumes:
+      - local_postgres_volume:/var/lib/postgresql/data

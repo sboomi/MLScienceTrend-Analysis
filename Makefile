@@ -10,8 +10,7 @@ PROFILE = sboomi
 PROJECT_NAME = scitrend-analysis
 PYTHON_INTERPRETER = python3
 POSTGRES_PASSWORD = mysecretpassword
-DB_DOCKER_COMPOSE_FILE = ./data/external/docker-compose.sql.yml
-MONGO_DOCKER_COMPOSE_FILE = ./data/external/docker-compose.mongo.yml
+DOCKER_COMPOSE_FILE = ./docker-compose.yml
 
 ifeq (,$(shell which conda))
 HAS_CONDA=False
@@ -33,6 +32,10 @@ endif
 ## Install Python Dependencies
 ## Note: make a condition for conda
 requirements: test_environment
+ifeq (True, $(HAS_CONDA))
+	mamba env update --name $(PROJECT_NAME) --file environment-dev.yml
+	$(PYTHON_INTERPRETER) -m pip install -e .
+else
 	$(PYTHON_INTERPRETER) -m pip install -U pip setuptools wheel
 	$(PYTHON_INTERPRETER) -m pip install -r requirements.txt
 ifeq (none, $(CUDA_VERSION))
@@ -81,7 +84,8 @@ create_environment:
 ifeq (True,$(HAS_CONDA))
 		@echo ">>> Detected conda, creating conda environment."
 ifeq (3,$(findstring 3,$(PYTHON_INTERPRETER)))
-	conda create --name $(PROJECT_NAME) python=3
+	conda install mamba -n base -c conda-forge
+	mamba create --name $(PROJECT_NAME) python=3
 else
 	conda create --name $(PROJECT_NAME) python=2.7
 endif
@@ -108,17 +112,11 @@ test_functions:
 streamlit:
 	streamlit run streamlit/app.py
 
-postgres-start:
+docker-start:
 	docker-compose -f ${DB_DOCKER_COMPOSE_FILE} up --build -d
 
-postgres-destroy:
+docker-destroy:
 	docker-compose -f ${DB_DOCKER_COMPOSE_FILE} down -v
-
-mongo-start:
-	docker-compose -f ${MONGO_DOCKER_COMPOSE_FILE} up --build -d
-
-mongo-destroy:
-	docker-compose -f ${MONGO_DOCKER_COMPOSE_FILE} down -v
 
 #################################################################################
 # Python commands                                                             #
