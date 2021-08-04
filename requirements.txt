@@ -1,0 +1,19 @@
+# local package
+-e .
+
+# external requirements
+click
+Sphinx
+coverage
+awscli
+mypy
+python-dotenv>=0.5.1
+pytest
+coloredlogs
+pymongo
+sqlalchemy
+beautifulsoup4
+pandas
+requests
+pydantic
+tqdm
