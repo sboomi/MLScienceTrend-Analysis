@@ -37,3 +37,4 @@ dependencies:
   - mypy
   - black
   - tqdm
+  - types-requests
