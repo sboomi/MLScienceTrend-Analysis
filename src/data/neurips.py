@@ -1,3 +1,4 @@
+import json
 import logging
 from pathlib import Path
 from typing import List, Optional
@@ -18,6 +19,8 @@ from .db_models import Authors, Papers
 from .dbutils import load_mongo_client
 
 NEURIPS_URL = "https://papers.nips.cc/"
+ROOT_DIR = Path(__file__).resolve().parents[2]
+CURRENT_YEAR = 2021
 
 
 log_fmt = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
@@ -41,6 +44,13 @@ class NeuripsInfoDataFrame(BaseModel):
     title: List[str] = []
     authors: List[str] = []
     abstract: List[str] = []
+
+
+class MongoCreds(BaseModel):
+    mongo_username: str
+    mongo_password: str
+    mongo_database: str = "neurips"
+    mongo_collection: str = "neurips_metadata"
 
 
 def extract_text(el: Optional[Tag]) -> str:
@@ -84,7 +94,7 @@ def get_neurips_hashs(save_file: Optional[Path] = None) -> pd.DataFrame:
         The dataframe containing the hashs and year columns
     """
     year_hash = HashYearDataFrame()
-    for y in range(1987, 2021):
+    for y in range(1987, CURRENT_YEAR):
         year_url = NEURIPS_URL + f"paper/{y}"
         r = requests.get(year_url)
         if r.status_code == 200:
@@ -220,13 +230,7 @@ def save_neurips_info_sql(engine: Engine, hash_csv: Optional[Path] = None) -> No
     logger.info("Done!")
 
 
-def save_neurips_metadata(
-    mongo_username: str,
-    mongo_password: str,
-    hash_csv: Optional[Path] = None,
-    mongo_database: str = "neurips",
-    mongo_collection: str = "neurips_metadata",
-) -> None:
+def save_neurips_metadata(hash_csv: Optional[Path] = None, mongo_creds: Optional[MongoCreds] = None) -> None:
     """[summary]
 
     Parameters
@@ -250,22 +254,36 @@ def save_neurips_metadata(
             year_hash = get_neurips_hashs(save_file=hash_csv)
     else:
         year_hash = get_neurips_hashs()
-    client = load_mongo_client(mongo_username, mongo_password)
-    db = client[mongo_database]
-    collection = db[mongo_collection]
+
+    if mongo_creds:
+        client = load_mongo_client(mongo_creds.mongo_username, mongo_creds.mongo_password)
+        db = client[mongo_creds.mongo_database]
+        collection = db[mongo_creds.mongo_collection]
+    else:
+        json_dir = ROOT_DIR / "data" / "raw" / "neurips_metadata"
+        json_dir.mkdir(parents=True, exist_ok=True)
 
     for _, row in tqdm(year_hash.iterrows(), desc="retrieving metatdata", unit="hash", total=year_hash.shape[0]):
         json_url = f"https://papers.nips.cc/paper/{row.year}/file/{row.hash}-Metadata.json"
         req_json = requests.get(json_url)
         if req_json.status_code == 200:
             metadata = req_json.json()
-            metadata["_id"] = row.hash
-            try:
-                metadata_id = collection.insert_one(metadata).inserted_id
-            except pymongo.errors.DuplicateKeyError:
-                logger.error(f"Entry {row.hash} already exists!")
+
+            if mongo_creds:
+                metadata["_id"] = row.hash
+                try:
+                    _ = collection.insert_one(metadata).inserted_id
+                except pymongo.errors.DuplicateKeyError:
+                    logger.error(f"Entry {row.hash} already exists!")
+                else:
+                    logger.info(f"Entry {row.hash} inserted!")
+
             else:
-                logger.info(f"Entry {row.hash} inserted!")
+                # Save everything as a JSON file
+                with open(json_dir / f"{row.year}_{row.hash}.json", "w") as json_f:
+                    json.dump(metadata, json_f, indent=2)
+                logger.info(f"{json_dir / f'{row.year}_{row.hash}.json'} written!")
+
         else:
             logger.error(f"Error: code {req_json.status_code} for ID {row.hash}. Continuing...")
     logger.info("Operation complete.")

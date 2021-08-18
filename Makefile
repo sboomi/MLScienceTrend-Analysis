@@ -11,6 +11,7 @@ PROJECT_NAME = scitrend-analysis
 PYTHON_INTERPRETER = python3
 POSTGRES_PASSWORD = mysecretpassword
 DOCKER_COMPOSE_FILE = ./docker-compose.yml
+RAW_DATA = ./data/raw
 
 ifeq (,$(shell which conda))
 HAS_CONDA=False
@@ -128,8 +129,8 @@ docker-destroy:
 # Python commands                                                             #
 #################################################################################
 
-download-metatdata:
-	${PYTHON_INTERPRETER} src/cli.py download
+download-metadata:
+	${PYTHON_INTERPRETER} src/cli.py download ${RAW_DATA}
 
 #################################################################################
 # Self Documenting Commands                                                     #

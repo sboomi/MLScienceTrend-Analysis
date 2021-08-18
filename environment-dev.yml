@@ -4,7 +4,7 @@ channels:
   - defaults
   - pytorch
 dependencies:
-  - python==3.9
+  - python==3.9.*
   - pytorch
   - torchvision
   - torchaudio
@@ -38,3 +38,4 @@ dependencies:
   - black
   - tqdm
   - types-requests
+  - isort
