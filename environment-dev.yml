@@ -2,13 +2,13 @@ name: scitrend-analysis
 channels:
   - conda-forge
   - defaults
-  # - pytorch
+  - pytorch
 dependencies:
   - python==3.9
   - pytorch
   - torchvision
   - torchaudio
-  - cudatoolkit==11.1
+  - cudatoolkit==11.1.*
   - notebook
   - jupyterhub
   - jupyterlab
