@@ -16,7 +16,7 @@ from tqdm import tqdm
 
 from . import Base
 from .db_models import Authors, Papers
-from .dbutils import load_mongo_client
+from .dbutils import MongoConnector
 
 NEURIPS_URL = "https://papers.nips.cc/"
 ROOT_DIR = Path(__file__).resolve().parents[2]
@@ -47,10 +47,11 @@ class NeuripsInfoDataFrame(BaseModel):
 
 
 class MongoCreds(BaseModel):
-    mongo_username: str
-    mongo_password: str
-    mongo_database: str = "neurips"
-    mongo_collection: str = "neurips_metadata"
+    uri: NoneStr
+    host: str = "localhost"
+    port: int = 27017
+    database: str = "neurips"
+    collection: str = "neurips_metadata"
 
 
 def extract_text(el: Optional[Tag]) -> str:
@@ -235,16 +236,10 @@ def save_neurips_metadata(hash_csv: Optional[Path] = None, mongo_creds: Optional
 
     Parameters
     ----------
-    mongo_username : str
-        [description]
-    mongo_password : str
-        [description]
     hash_csv : Optional[Path], optional
         [description], by default None
-    mongo_database : str, optional
-        [description], by default "neurips"
-    mongo_collection : str, optional
-        [description], by default "neurips_metadata"
+    mongo_creds : Optional[MongoCreds], optional
+        [description], by default None
     """
     if hash_csv:
         try:
@@ -256,9 +251,17 @@ def save_neurips_metadata(hash_csv: Optional[Path] = None, mongo_creds: Optional
         year_hash = get_neurips_hashs()
 
     if mongo_creds:
-        client = load_mongo_client(mongo_creds.mongo_username, mongo_creds.mongo_password)
-        db = client[mongo_creds.mongo_database]
-        collection = db[mongo_creds.mongo_collection]
+        mongo_conn = MongoConnector()
+        if mongo_creds.uri:
+            logger.info("Mongo Atlas URI detected.")
+            mongo_conn.connect_from_atlas(mongo_creds.uri)
+        else:
+            logger.info(f"Connecting to MongoDB at {mongo_creds.host}:{mongo_creds.port}")
+            mongo_conn.connect_locally(host=mongo_creds.host, port=mongo_creds.port)
+
+        client = mongo_conn.create_client()
+        db = client[mongo_creds.database]
+        collection = db[mongo_creds.collection]
     else:
         json_dir = ROOT_DIR / "data" / "raw" / "neurips_metadata"
         json_dir.mkdir(parents=True, exist_ok=True)

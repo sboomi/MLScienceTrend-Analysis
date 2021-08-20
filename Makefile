@@ -12,6 +12,7 @@ PYTHON_INTERPRETER = python3
 POSTGRES_PASSWORD = mysecretpassword
 DOCKER_COMPOSE_FILE = ./docker-compose.yml
 RAW_DATA = ./data/raw
+NEURIPS_METADATA = ./data/raw/neurips.csv
 
 ifeq (,$(shell which conda))
 HAS_CONDA=False
@@ -131,6 +132,9 @@ docker-destroy:
 
 download-metadata:
 	${PYTHON_INTERPRETER} src/cli.py download ${RAW_DATA}
+
+download-neurips-metadata:
+	${PYTHON_INTERPRETER} src/cli.py download_metadata ${NEURIPS_METADATA}
 
 #################################################################################
 # Self Documenting Commands                                                     #

@@ -8,7 +8,13 @@ import coloredlogs
 
 from src import log_program
 from src.data.ml4physics import extract_ml4physics
-from src.data.neurips import download_neurips_bibtex, download_neurips_papers, get_neurips_hashs, save_neurips_metadata
+from src.data.neurips import (
+    download_neurips_bibtex,
+    download_neurips_papers,
+    get_neurips_hashs,
+    save_neurips_metadata,
+    MongoCreds,
+)
 
 log_fmt = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 logging.basicConfig(level=logging.INFO, format=log_fmt)
@@ -25,5 +31,11 @@ def download_metadata(dest_folder: Path):
 
 
 @log_program("Downloading Neurips Metadata JSON", timeit=True)
-def get_neurips_metadata(mongo_creds, metadata_csv):
-    pass
+def get_neurips_metadata(metadata_csv: Path, mongo_uri: str = "", mongo_host: str = "", mongo_port: int = 0) -> None:
+    mongo_creds = None
+    if mongo_uri:
+        mongo_creds = MongoCreds(uri=mongo_uri)
+    elif mongo_host and mongo_port:
+        mongo_creds = MongoCreds(host=mongo_host, port=mongo_port)
+
+    save_neurips_metadata(hash_csv=metadata_csv, mongo_creds=mongo_creds)

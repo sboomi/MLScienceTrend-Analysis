@@ -1,3 +1,5 @@
+import re
+import base64
 from os import PathLike
 from pathlib import Path
 from typing import Literal, Union
@@ -9,24 +11,74 @@ from sqlalchemy.engine import Engine
 DATABASES = Literal["sqlite", "mssql", "oracle", "mysql", "postgresql"]
 
 
-def load_mongo_client(mongo_username: str, mongo_password: str) -> pymongo.MongoClient:
-    """Loads MongoDB's client from Mongo credentials
+class MongoConnector:
+    """Connector handling special instances of MongoDB"""
 
-    Parameters
-    ----------
-    mongo_username : str
-        MongoDB's database username
-    mongo_password : str
-        MongoDB's database password
+    uri_regex = re.compile(
+        r"^mongodb\+srv:\/\/([a-zA-Z0-9_-]+):([a-zA-Z0-9]+)@([a-z]+)\.(\w+)\.mongodb.net\/(\w+)\?retryWrites=true&w=majority$",
+        re.M,
+    )
 
-    Returns
-    -------
-    pymongo.MongoClient
-        Database client of MongoDB
-    """
-    mongo_uri = f"mongodb+srv://{mongo_username}:{mongo_password}@maincluster.otbuf.mongodb.net/myFirstDatabase?retryWrites=true&w=majority"
-    client = pymongo.MongoClient(mongo_uri)
-    return client
+    @staticmethod
+    def encode_pw(pw):
+        return base64.b64encode(pw.encode("utf-8"))
+
+    @staticmethod
+    def decode_pw(enc_pw):
+        return base64.b64decode(enc_pw).decode("utf-8")
+
+    def __init__(self):
+        self.uri = ""
+        self.username = ""
+        self.password = b""
+        self.project_id = ""
+        self.host = ""
+        self.port = 0
+        self.db = ""
+        self.cluster_name = ""
+        self.with_atlas = False
+
+    def connect_from_atlas(self, uri: str) -> None:
+        if not self.uri_regex.findall(uri) and len(self.uri_regex.findall(uri)) != 5:
+            raise Exception("The URI you've entered isn't correct")
+
+        self.username, raw_pw, self.cluster_name, self.project_id, self.db = self.uri_regex.findall(uri)[0]
+        self.password = self.encode_pw(raw_pw)
+        self.with_atlas = True
+        rep_uri_pattern = fr"mongodb+srv://\1:{self.password.decode()}@\3.\4.mongodb.net/\5?retryWrites=true&w=majority"
+        self.uri = self.uri_regex.sub(rep_uri_pattern, uri)
+
+    def connect_locally(self, host: str = "localhost", port: int = 27017):
+        self.host = host.strip()
+        self.port = port
+        self.uri = f"mongodb://{host}:{port}/"
+
+    def create_client(self) -> pymongo.MongoClient:
+        if not self.uri:
+            raise Exception(
+                """URI empty.
+            Connect locally or using Atlas first using `connect_from_atlas(uri)` or
+            `connect_locally(host, port)`."""
+            )
+
+        if self.with_atlas:
+            raw_pw = self.decode_pw(self.password)
+            uri = f"mongodb+srv://{self.username}:{raw_pw}@{self.cluster_name}.{self.project_id}.mongodb.net/{self.db}?retryWrites=true&w=majority"
+            return pymongo.MongoClient(uri)
+
+        return pymongo.MongoClient(self.uri)
+
+    def __repr__(self) -> str:
+        att_list = [f"{attr}={value}" for attr, value in self.__dict__.items()]
+        return f"MongoConnector({', '.join(att_list)})"
+
+    def __str__(self) -> str:
+        if not self.uri:
+            return "Connector not initialized"
+        elif self.with_atlas:
+            return f"Atlas URI: {self.uri}"
+        else:
+            return f"Local machine (host={self.host}, port={self.port})"
 
 
 def load_sql_engine(
