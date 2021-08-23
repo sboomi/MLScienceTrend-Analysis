@@ -39,3 +39,5 @@ dependencies:
   - tqdm
   - types-requests
   - isort
+  - dnspython
+  - wordcloud

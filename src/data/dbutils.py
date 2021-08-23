@@ -2,11 +2,14 @@ import re
 import base64
 from os import PathLike
 from pathlib import Path
-from typing import Literal, Union
+from typing import Any, Literal, Union, Dict
 
 import pymongo
+import requests
 from sqlalchemy import create_engine
 from sqlalchemy.engine import Engine
+from requests.exceptions import ConnectionError
+from json.decoder import JSONDecodeError
 
 DATABASES = Literal["sqlite", "mssql", "oracle", "mysql", "postgresql"]
 
@@ -79,6 +82,41 @@ class MongoConnector:
             return f"Atlas URI: {self.uri}"
         else:
             return f"Local machine (host={self.host}, port={self.port})"
+
+
+class NeuripsAPIConnector:
+    request_type = ["pdf", "metadata", "bibtex"]
+    base_url = "https://papers.nips.cc/"
+
+    @classmethod
+    def get_metadata(cls, hash: str, year: int) -> Dict:
+        json_url = f"{cls.base_url}paper/{year}/file/{hash}-Metadata.json"
+        try:
+            req_json = requests.get(json_url)
+        except ConnectionError as e:
+            return {"error": f"{e}", "url": json_url}
+
+        # Returns the empty dict if the request fails
+        if req_json.status_code != 200:
+            raise Exception(f"Code {req_json.status_code}: page not found or too many requests")
+        return cls.test_json_request(req_json, json_url)
+
+    @classmethod
+    def request(cls, req_type: str, hash: str, year: int) -> Any:
+        if req_type not in cls.request_type:
+            raise Exception(f"Error. Request type must be one of the following: {cls.request_type}")
+
+        if req_type == "metadata":
+            cls.get_metadata(hash, year)
+
+    @staticmethod
+    def test_json_request(r: requests.Response, url: str) -> Dict:
+        try:
+            json_response = r.json()
+        except JSONDecodeError as e:
+            json_response = {"error": f"{e}", "url": url, "contents": r.text}
+
+        return json_response
 
 
 def load_sql_engine(

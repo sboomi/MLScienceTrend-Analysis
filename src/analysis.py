@@ -34,8 +34,12 @@ def download_metadata(dest_folder: Path):
 def get_neurips_metadata(metadata_csv: Path, mongo_uri: str = "", mongo_host: str = "", mongo_port: int = 0) -> None:
     mongo_creds = None
     if mongo_uri:
+        logger.info(f"Registering metadata in MongoDB Atlas cluster\nURI:{mongo_uri}")
         mongo_creds = MongoCreds(uri=mongo_uri)
     elif mongo_host and mongo_port:
+        logger.info(f"Registering metadata in MongoDB local base\nHost:{mongo_host} / Port:{mongo_port}")
         mongo_creds = MongoCreds(host=mongo_host, port=mongo_port)
+    else:
+        logger.info("No MongoDB creds found. Saving locally.")
 
     save_neurips_metadata(hash_csv=metadata_csv, mongo_creds=mongo_creds)

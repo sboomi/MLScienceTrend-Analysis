@@ -16,7 +16,7 @@ from tqdm import tqdm
 
 from . import Base
 from .db_models import Authors, Papers
-from .dbutils import MongoConnector
+from .dbutils import MongoConnector, NeuripsAPIConnector
 
 NEURIPS_URL = "https://papers.nips.cc/"
 ROOT_DIR = Path(__file__).resolve().parents[2]
@@ -267,28 +267,44 @@ def save_neurips_metadata(hash_csv: Optional[Path] = None, mongo_creds: Optional
         json_dir.mkdir(parents=True, exist_ok=True)
 
     for _, row in tqdm(year_hash.iterrows(), desc="retrieving metatdata", unit="hash", total=year_hash.shape[0]):
-        json_url = f"https://papers.nips.cc/paper/{row.year}/file/{row.hash}-Metadata.json"
-        req_json = requests.get(json_url)
-        if req_json.status_code == 200:
-            metadata = req_json.json()
-
-            if mongo_creds:
-                metadata["_id"] = row.hash
-                try:
-                    _ = collection.insert_one(metadata).inserted_id
-                except pymongo.errors.DuplicateKeyError:
-                    logger.error(f"Entry {row.hash} already exists!")
-                else:
-                    logger.info(f"Entry {row.hash} inserted!")
-
-            else:
-                # Save everything as a JSON file
-                with open(json_dir / f"{row.year}_{row.hash}.json", "w") as json_f:
-                    json.dump(metadata, json_f, indent=2)
-                logger.info(f"{json_dir / f'{row.year}_{row.hash}.json'} written!")
-
+        # Before requesting, check if the entry isn't in the db / folder first
+        if mongo_creds:
+            current_entry = collection.find_one({"_id": row.hash})
         else:
-            logger.error(f"Error: code {req_json.status_code} for ID {row.hash}. Continuing...")
+            current_entry = (json_dir / f"{row.year}_{row.hash}.json").exists()
+
+        if not current_entry:
+            # Get request
+            try:
+                metadata = NeuripsAPIConnector.get_metadata(row.hash, row.year)
+            except Exception as e:
+                logger.error(f"{e}. Skipping...")
+            else:
+                # Check the error report first
+                if "error" in metadata:
+                    logger.error(f"{metadata['error']} with {metadata['url']}")
+                    metadata["hash"] = row.hash
+                    metadata["year"] = row.year
+                    metadata["status"] = "Download failed"
+
+                # Insert or register if everything is ok
+                if mongo_creds:
+                    metadata["_id"] = row.hash
+                    try:
+                        _ = collection.insert_one(metadata).inserted_id
+                    except pymongo.errors.DuplicateKeyError:
+                        logger.error(f"Entry {row.hash} already exists!")
+                    else:
+                        logger.info(f"Entry {row.hash} inserted!")
+
+                else:
+                    # Save everything as a JSON file
+                    with open(json_dir / f"{row.year}_{row.hash}.json", "w") as json_f:
+                        json.dump(metadata, json_f, indent=2)
+                    logger.info(f"{json_dir / f'{row.year}_{row.hash}.json'} written!")
+        else:
+            logger.warning(f"Entry {row.hash} from {row.year} already exists")
+
     logger.info("Operation complete.")
 
 
@@ -315,7 +331,7 @@ def download_neurips_bibtex(target_folder: Path, hash_csv: Optional[Path] = None
     else:
         year_hash = get_neurips_hashs()
     for _, row in tqdm(year_hash.iterrows(), desc="Downloading bibtex refs", unit="hash", total=year_hash.shape[0]):
-        bibtex_url = f"https://papers.nips.cc/paper/{row.year}/file/{row.hash}-Bibtex.bib"
+        bibtex_url = f"{NEURIPS_URL}paper/{row.year}/file/{row.hash}-Bibtex.bib"
         r = requests.get(bibtex_url)
         if r.status_code == 200 and not (target_folder / f"{row.year}_{row.hash}.bib").exists():
             with open(target_folder / f"{row.year}_{row.hash}.bib", "wb") as f:
@@ -325,16 +341,18 @@ def download_neurips_bibtex(target_folder: Path, hash_csv: Optional[Path] = None
 
 
 def download_neurips_papers(target_folder: Path, hash_csv: Optional[Path] = None, chunk_size: int = 512) -> None:
-    """[summary]
+    """Function that downloads papers from the Neurips website.
+    It takes a destination folder as well as a chunk_size in the possible case that the
+    download might exceed the buffer's capacity.
 
     Parameters
     ----------
     target_folder : Path
-        [description]
+        folder to put your PDFs in
     hash_csv : Optional[Path], optional
-        [description], by default None
+        metadata file containing the hashes and the years, by default None
     chunk_size : int, optional
-        [description], by default 512
+        array size when the PDF is donwloaded by parts, by default 512
     """
     if not target_folder.exists():
         logger.warning("Provided folder doesn't exist. Creating a new one")
@@ -349,8 +367,8 @@ def download_neurips_papers(target_folder: Path, hash_csv: Optional[Path] = None
     else:
         year_hash = get_neurips_hashs()
     for _, row in tqdm(year_hash.iterrows(), desc="Downloading PDFS", unit="hash", total=year_hash.shape[0]):
-        bibtex_url = f"https://papers.nips.cc/paper/{row.year}/file/{row.hash}-Paper.pdf"
-        r = requests.get(bibtex_url, stream=True)
+        pdf_url = f"{NEURIPS_URL}paper/{row.year}/file/{row.hash}-Paper.pdf"
+        r = requests.get(pdf_url, stream=True)
         if r.status_code == 200 and not (target_folder / f"{row.year}_{row.hash}.pdf").exists():
             with open(target_folder / f"{row.year}_{row.hash}.pdf", "wb") as f:
                 for chunk in r.iter_content(chunk_size):

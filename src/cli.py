@@ -1,15 +1,16 @@
 """Main `scitrend-analysis` cli"""
-from typing import Optional
-import click
 import os
-from dotenv import load_dotenv
 import sys
-import torch
-
 from pathlib import Path
+from typing import Optional
+
+import click
+import torch
+from dotenv import load_dotenv
+
 from src import __version__, analysis
 
-ROOT_DIR = Path(__file__).resolve().parents[2]
+ROOT_DIR = Path(__file__).resolve().parents[1]
 
 
 def version_msg() -> str:
@@ -46,9 +47,9 @@ def download(dest_folder: str) -> None:
 
 @main.command()
 @click.argument("hash_csv", type=click.Path(exists=True), required=True)
-@click.option("--mongo-uri", "mongo_uri", type=str)
-@click.option("-H", "--mongo-host", "mongo_host", type=str)
-@click.option("-p", "--mongo-port", "mongo_port", type=int)
+@click.option("--mongo-uri", "mongo_uri", type=str, envvar="MONGO_ATLAS_URI", default="")
+@click.option("-H", "--mongo-host", "mongo_host", envvar="MONGO_HOST", type=str, default="")
+@click.option("-p", "--mongo-port", "mongo_port", envvar="MONGO_PORT", type=int, default=0)
 @click.option(
     "-e",
     "--with-env",
@@ -63,13 +64,20 @@ def dowload_metadata(
     mongo_port: Optional[int] = 0,
     is_env: bool = False,
 ) -> None:
-    if is_env:
-        env_path = ROOT_DIR / ".config" / ".env"
-        load_dotenv(env_path)
-        mongo_uri = os.environ.get("MONGO_ATLAS_URI", "")
+    if not is_env:
+        mongo_uri = ""
+        mongo_host = ""
+        mongo_port = 0
+        click.echo("Using the local storage for metadata")
+
+    if mongo_host and mongo_port:
+        mongo_uri = ""
+        click.echo(f"Using local MongoDB database at {mongo_host}:{mongo_port}")
 
     analysis.get_neurips_metadata(Path(hash_csv), mongo_uri=mongo_uri, mongo_host=mongo_host, mongo_port=mongo_port)
 
 
 if __name__ == "__main__":
+    env_path = ROOT_DIR / ".config" / ".env"
+    load_dotenv(env_path)
     main()
