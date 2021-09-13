@@ -20,3 +20,4 @@ pydantic==1.8.*
 tqdm==4.62.*
 types-requests==2.25.*
 wordcloud==1.8.*
+pillow>=8.1.0 # not directly required, pinned by Snyk to avoid a vulnerability
