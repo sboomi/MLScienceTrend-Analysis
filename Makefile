@@ -134,7 +134,7 @@ download-metadata:
 	${PYTHON_INTERPRETER} src/cli.py download ${RAW_DATA}
 
 download-neurips-metadata:
-	${PYTHON_INTERPRETER} src/cli.py download_metadata ${NEURIPS_METADATA}
+	${PYTHON_INTERPRETER} src/cli.py download-metadata ${NEURIPS_METADATA}
 
 #################################################################################
 # Self Documenting Commands                                                     #

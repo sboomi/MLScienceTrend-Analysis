@@ -1,7 +1,9 @@
 """Main analysis package"""
 from functools import wraps
+from pathlib import Path
 
 __version__ = "0.1.0"
+ROOT_DIR = Path(__file__).resolve().parents[1]
 
 
 def log_program(task_name, timeit=False):

@@ -8,9 +8,7 @@ import click
 import torch
 from dotenv import load_dotenv
 
-from src import __version__, analysis
-
-ROOT_DIR = Path(__file__).resolve().parents[1]
+from src import __version__, analysis, ROOT_DIR
 
 
 def version_msg() -> str:
@@ -75,6 +73,21 @@ def dowload_metadata(
         click.echo(f"Using local MongoDB database at {mongo_host}:{mongo_port}")
 
     analysis.get_neurips_metadata(Path(hash_csv), mongo_uri=mongo_uri, mongo_host=mongo_host, mongo_port=mongo_port)
+
+
+@main.command()
+@click.argument("file_csv", type=click.Path(exists=True), required=True)
+@click.option("-ng", "--n-grams", "n_grams", type=int, default=1)
+@click.option("-o", "--output-folder", "save_folder", type=click.Path(exists=True), required=True)
+def get_keywords(file_csv: Path, n_grams: int, save_folder: Path):
+    analysis.get_keywords(Path(file_csv), n_grams, Path(save_folder))
+
+
+@main.command()
+@click.argument("json_path", type=click.Path(exists=True), required=True)
+@click.option("--db-option", "db_option", type=click.Choice(["create", "replace"], case_sensitive=False))
+def neurips_meta_to_sql(json_path, db_option):
+    analysis.send_neurips_to_sql_db(Path(json_path), db_option)
 
 
 if __name__ == "__main__":

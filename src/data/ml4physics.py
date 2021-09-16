@@ -6,7 +6,6 @@ from typing import List, Optional
 
 import coloredlogs
 import pandas as pd
-import pymongo
 import requests
 from bs4 import BeautifulSoup
 from pydantic import BaseModel, NoneStr

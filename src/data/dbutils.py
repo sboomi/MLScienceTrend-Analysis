@@ -2,6 +2,7 @@ import re
 import base64
 from os import PathLike
 from pathlib import Path
+from . import ROOT_DIR
 from typing import Any, Literal, Union, Dict
 
 import pymongo
@@ -150,11 +151,16 @@ def load_sql_engine(
         an SQL engine instance
     """
     if dialect == "sqlite":
-        db_uri = f"sqlite:///{Path(database).as_posix()}" if Path(database) and Path(database).exists() else "sqlite://"
-        engine = create_engine(db_uri)
+        db_uri = (
+            f"sqlite:///{Path(database).as_posix()}"
+            if database and Path(database).exists() and Path(database).stem.endswith("db")
+            else f"sqlite:///{(ROOT_DIR / 'data'  / 'dataset.db').as_posix()}"
+        )
     elif username and password and port:
         db_uri = f"{dialect}://{username}:{password}@{host}:{port}/{database}"
-        engine = create_engine(db_uri)
+
     else:
         raise NameError("One or multiple fields aren't referenced.")
+
+    engine = create_engine(db_uri, echo=True)
     return engine
