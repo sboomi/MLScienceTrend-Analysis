@@ -49,7 +49,6 @@ def char_proportion(text: str) -> float:
 
     # Pattern for punctuation with Python's string module
     chr_patt = re.compile(r"\S+", re.M)
-    punct_escape_chr = "".join(["\\" + char for char in string.punctuation])
     no_chr_patt = re.compile(fr"[\d{string.punctuation}]+", re.M)
 
     for match in chr_patt.finditer(text):
@@ -67,7 +66,7 @@ def char_proportion(text: str) -> float:
     return count_no_chrs / count_chrs
 
 
-def clean_all_papers(papers: pd.Series):
+def clean_all_papers(papers: pd.Series) -> pd.Series:
     """Clean all papers according to preprocessing steps
 
     Parameters

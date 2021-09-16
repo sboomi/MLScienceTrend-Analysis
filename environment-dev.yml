@@ -42,3 +42,7 @@ dependencies:
   - dnspython
   - wordcloud
   - pillow
+  - pyspark
+  - lxml
+  - pytest
+  - kaggle

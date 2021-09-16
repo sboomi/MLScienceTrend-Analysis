@@ -21,3 +21,5 @@ pydantic==1.8.*
 tqdm==4.62.*
 types-requests==2.25.*
 wordcloud==1.8.*
+pyspark[sql]==3.1.*
+lxml==4.6.*

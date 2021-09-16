@@ -95,6 +95,7 @@ def metadata_to_sql_db(json_folder: Path, sql_engine: Engine, options: str = "cr
     # Commit session at the end of your operations
     session.commit()
     logger.info("Done!")
+    session.close()
 
 
 def extract_sql_to_df(engine: Engine, table: str, columns: List[str] = []) -> pd.DataFrame:

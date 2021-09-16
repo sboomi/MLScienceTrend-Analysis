@@ -90,6 +90,14 @@ def neurips_meta_to_sql(json_path, db_option):
     analysis.send_neurips_to_sql_db(Path(json_path), db_option)
 
 
+@main.command()
+@click.argument("query", type=str, nargs=-1)
+@click.option("-m", "--max-results", "max_results", type=int, required=True, help="Number of results to fetch.")
+@click.option("-f", "--chunk-size", "chunk_size", type=float, required=True, help="Fraction of max results to fetch")
+def download_arxiv_info(query, max_results, chunk_size):
+    analysis.query_arxiv_articles(" ".join(query), n_results=max_results, chunk_size=chunk_size)
+
+
 if __name__ == "__main__":
     env_path = ROOT_DIR / ".config" / ".env"
     load_dotenv(env_path)

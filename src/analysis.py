@@ -3,19 +3,20 @@
 
 import logging
 from pathlib import Path
-from src.data.intermediate import extract_sql_to_df, metadata_to_sql_db
-from src.data.dbutils import load_sql_engine
 
 import coloredlogs
 
 from src import log_program
+from src.data.arxiv import compose_arxiv_query
+from src.data.dbutils import load_sql_engine
+from src.data.intermediate import extract_sql_to_df, metadata_to_sql_db
 from src.data.ml4physics import extract_ml4physics
 from src.data.neurips import (
+    MongoCreds,
     download_neurips_bibtex,
     download_neurips_papers,
     get_neurips_hashs,
     save_neurips_metadata,
-    MongoCreds,
 )
 from src.features.extract_words import extract_keywords
 from src.visualization.wordcloud import feature_wordcloud
@@ -74,4 +75,13 @@ def send_neurips_to_sql_db(json_path, option):
 @log_program("Preprocessing text", timeit=True)
 def preprocessing_neurips(sql_uri=""):
     engine = load_sql_engine(database=sql_uri)
+    logger.info(f"Using DB: {engine.url}")
     papers = extract_sql_to_df(engine, "papers", columns=["title", "full_text"])
+
+
+@log_program("Register arxiv articles", timeit=True)
+def query_arxiv_articles(q: str, n_results: int, chunk_size: float, sql_uri=""):
+    engine = load_sql_engine(database=sql_uri)
+    logger.info(f"Using DB: {engine.url}")
+    logger.info(f"Preparing query {q} with {n_results:,d} results ({chunk_size:.0%} per request)")
+    compose_arxiv_query(q, engine, max_results=n_results, frac_requests=chunk_size)
