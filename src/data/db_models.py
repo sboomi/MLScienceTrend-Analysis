@@ -1,6 +1,14 @@
-from sqlalchemy import Column, Integer, String, Text, ForeignKey, DateTime
+from sqlalchemy import Column, Integer, String, Text, ForeignKey, DateTime, Table
 from sqlalchemy.orm import relationship
 from . import Base
+
+
+class PaperAuthor(Base):
+    __tablename__ = "paper_author"
+    paper_id = Column(ForeignKey("papers.id"), primary_key=True)
+    author_id = Column(ForeignKey("authors.id"), primary_key=True)
+    paper = relationship("Papers", back_populates="authors")
+    author = relationship("Authors", back_populates="papers")
 
 
 class Papers(Base):
@@ -12,7 +20,7 @@ class Papers(Base):
     published_date = Column(DateTime)
     updated_date = Column(DateTime)
     title = Column(String(100))
-    authors = relationship("Authors")
+    authors = relationship("PaperAuthor", back_populates="paper")
     abstract = Column(Text(2000))
     full_text = Column(Text)
     doi = Column(String(50))
@@ -32,7 +40,7 @@ class Authors(Base):
     firstname = Column(String(30), nullable=False)
     lastname = Column(String(30), nullable=False)
     institution = Column(String(60))
-    paper = Column(Integer, ForeignKey("papers.id"))
+    papers = relationship("Papers", back_populates="author")
 
     def __repr__(self):
         return f"{self.firstname} {self.lastname}"

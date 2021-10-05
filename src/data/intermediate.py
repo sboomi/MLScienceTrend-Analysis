@@ -9,7 +9,7 @@ from sqlalchemy.orm.session import sessionmaker
 from tqdm import tqdm
 from sqlalchemy.engine import Engine
 from . import Base
-from .db_models import Papers, Authors
+from .db_models import Papers, Authors, PaperAuthor
 
 log_fmt = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 logging.basicConfig(level=logging.INFO, format=log_fmt)
@@ -72,25 +72,38 @@ def metadata_to_sql_db(json_folder: Path, sql_engine: Engine, options: str = "cr
                 synchronize_session="fetch",
             )
         else:
+            # Create paper
             paper = Papers(
                 year=year,
                 hash=paper_hash,
                 title=metadata["title"],
-                authors=[
-                    Authors(
-                        firstname=author["given_name"],
-                        lastname=author["family_name"],
-                        institution=author["institution"],
-                    )
-                    for author in metadata["authors"]
-                ],
                 publication=metadata["book"],
                 abstract=metadata["abstract"],
                 full_text=metadata["full_text"],
                 category="deep learning",
                 dataset="neurips",
             )
-            session.add(paper)
+            # https://docs.sqlalchemy.org/en/14/orm/basic_relationships.html#deleting-rows-from-the-many-to-many-table
+            assoc = PaperAuthor()
+
+            for author in metadata["authors"]:
+                given_name = author["given_name"]
+                last_name = author["family_name"]
+                institution = author["institution"]
+                author = (
+                    session.query(Authors)
+                    .filter(Authors.firstname == given_name, Authors.lastname == last_name)
+                    .first()
+                )
+                if not author:
+                    author = Authors(
+                        firstname=given_name,
+                        lastname=last_name,
+                        institution=institution,
+                    )
+
+                # assoc = PaperAuthor(paper=paper, author=author)
+            session.add(assoc)
 
     # Commit session at the end of your operations
     session.commit()

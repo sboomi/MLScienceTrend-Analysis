@@ -6,6 +6,7 @@ import time
 from enum import Enum
 from pathlib import Path
 from subprocess import PIPE, Popen
+from typing import List
 
 import boto3
 import coloredlogs
@@ -15,11 +16,11 @@ from bs4 import BeautifulSoup
 from bs4.element import Tag
 from pydantic import BaseModel, ValidationError, validator
 from sqlalchemy.engine import Engine
+from sqlalchemy.orm import session
 from sqlalchemy.orm.session import sessionmaker
-from src.data.db_models import Papers
 from tqdm import tqdm, trange
 
-from .db_models import Authors, Links, Papers
+from .db_models import Authors, Links, Papers, PaperAuthor
 
 PAUSE_TIME = 3
 BASE_URL = "http://export.arxiv.org/api/"
@@ -55,7 +56,7 @@ logger = logging.getLogger(__name__)
 coloredlogs.install()
 
 
-def return_arxiv_entry(entry: Tag) -> Papers:
+def return_arxiv_entry(entry: Tag, session: sessionmaker) -> List[PaperAuthor]:
     """Takes an entry from arXiv's API and turns it into
     an ORM instance
 
@@ -70,21 +71,20 @@ def return_arxiv_entry(entry: Tag) -> Papers:
     Papers
         The corresponding SQL output
     """
-    return Papers(
-        title=entry.title.text if entry.title else None,
+    assocs = []
+    published_date = dt.datetime.fromisoformat(entry.published.text.strip("Z")) if entry.published else None
+    title = entry.title.text if entry.title else None
+    if title and session.query(Papers).filter(Papers.title == title).first():
+        return []
+
+    paper = Papers(
+        title=title,
         abstract=entry.summary.text if entry.summary else None,
         updated_date=dt.datetime.fromisoformat(entry.updated.text.strip("Z")) if entry.updated else None,
-        published_date=dt.datetime.fromisoformat(entry.published.text.strip("Z")) if entry.published else None,
+        year=published_date.year if published_date else None,
+        published_date=published_date,
         doi=entry.doi.text if entry.doi else None,
         dataset="arxiv",
-        authors=[
-            Authors(
-                firstname=author.find("name").text.split()[:-1],
-                lastname=author.find("name").text.split()[-1],
-                institution=author.find("affiliation").text,
-            )
-            for author in entry.find_all("authors")
-        ],
         links=[
             Links(type=link.get("type") or link.get("title"), url=link.get("href")) for link in entry.find_all("link")
         ],
@@ -92,6 +92,19 @@ def return_arxiv_entry(entry: Tag) -> Papers:
         publication=entry.journal_ref.text if entry.journal_ref else None,
         category=entry.category.get("term") if entry.category else None,
     )
+    for author in entry.find_all("authors"):
+        fn, ln = author.find("name").text.split()[:-1], author.find("name").text.split()[-1]
+        ent_author = session.query(Authors).filter(Authors.firstname == fn, Authors.lastname == ln).first()
+        if not ent_author:
+            ent_author = Authors(
+                firstname=fn,
+                lastname=ln,
+                institution=author.find("affiliation").text,
+            )
+        assoc = PaperAuthor(paper=paper, author=ent_author)
+        assocs.append(assoc)
+
+    return assocs
 
 
 def request_arxiv(url: str, session: sessionmaker) -> None:
@@ -112,8 +125,9 @@ def request_arxiv(url: str, session: sessionmaker) -> None:
         for entry in tqdm(
             soup.find_all("entry"), desc="Entry registering", total=len(soup.find_all("entry")), file=sys.stdout
         ):
-            db_entry = return_arxiv_entry(entry)
-            session.add(db_entry)
+            assocs = return_arxiv_entry(entry, session)
+            for assoc in assocs:
+                session.add(assoc)
 
         session.commit()
     else:
