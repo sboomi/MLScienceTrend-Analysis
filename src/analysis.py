@@ -7,7 +7,7 @@ from pathlib import Path
 import coloredlogs
 
 from src import log_program
-from src.data.arxiv import compose_arxiv_query
+from src.data.arxiv import compose_arxiv_query, dl_bulk_data_manifest, download_source_code, explore_bucket_metadata
 from src.data.dbutils import load_sql_engine
 from src.data.intermediate import extract_sql_to_df, metadata_to_sql_db
 from src.data.ml4physics import extract_ml4physics
@@ -85,3 +85,15 @@ def query_arxiv_articles(q: str, n_results: int, chunk_size: float, sql_uri=""):
     logger.info(f"Using DB: {engine.url}")
     logger.info(f"Preparing query {q} with {n_results:,d} results ({chunk_size:.0%} per request)")
     compose_arxiv_query(q, engine, max_results=n_results, frac_requests=chunk_size)
+
+
+@log_program("Register ArXiV manifest", timeit=True)
+def dl_arxiv_manifest(dst_folder: Path, mode: str):
+    dl_bulk_data_manifest(dst_folder=dst_folder, pref_method=mode)
+    if mode == "s3":
+        explore_bucket_metadata(dst_folder / "arXiv_src_manifest.xml")
+
+
+@log_program("Download ArXiV bulk data", timeit=True)
+def dl_arxiv_bulk_data(manifest_file: Path, output_folder: Path, yes: bool):
+    download_source_code(manifest_file, output_folder, confirm=yes)

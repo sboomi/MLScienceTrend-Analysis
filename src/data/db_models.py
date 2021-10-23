@@ -5,10 +5,8 @@ from . import Base
 
 class PaperAuthor(Base):
     __tablename__ = "paper_author"
-    paper_id = Column(ForeignKey("papers.id"), primary_key=True)
-    author_id = Column(ForeignKey("authors.id"), primary_key=True)
-    paper = relationship("Papers", back_populates="authors")
-    author = relationship("Authors", back_populates="papers")
+    paper_id = Column(Integer, ForeignKey("papers.id"), primary_key=True)
+    author_id = Column(Integer, ForeignKey("authors.id"), primary_key=True)
 
 
 class Papers(Base):
@@ -20,7 +18,7 @@ class Papers(Base):
     published_date = Column(DateTime)
     updated_date = Column(DateTime)
     title = Column(String(100))
-    authors = relationship("PaperAuthor", back_populates="paper")
+    authors = relationship("Authors", secondary="paper_author")
     abstract = Column(Text(2000))
     full_text = Column(Text)
     doi = Column(String(50))
@@ -40,7 +38,7 @@ class Authors(Base):
     firstname = Column(String(30), nullable=False)
     lastname = Column(String(30), nullable=False)
     institution = Column(String(60))
-    papers = relationship("Papers", back_populates="author")
+    papers = relationship("Papers", secondary="paper_author")
 
     def __repr__(self):
         return f"{self.firstname} {self.lastname}"

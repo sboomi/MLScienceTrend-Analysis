@@ -36,6 +36,8 @@ endif
 requirements: test_environment
 ifeq (True, $(HAS_CONDA))
 	mamba env update --name $(PROJECT_NAME) --file environment-dev.yml
+	conda activate $(PROJECT_NAME)
+	mamba clean --all -f -y
 	$(PYTHON_INTERPRETER) -m pip install -e .
 else
 	$(PYTHON_INTERPRETER) -m pip install -U pip setuptools wheel
@@ -135,6 +137,9 @@ download-metadata:
 
 download-neurips-metadata:
 	${PYTHON_INTERPRETER} src/cli.py download-metadata ${NEURIPS_METADATA}
+
+dowload-arxiv-bulk-data:
+	scitrend-analysis arxiv-build-data ./data/raw/arXiv_src_manifest.xml D:/arxiv -y
 
 #################################################################################
 # Self Documenting Commands                                                     #
