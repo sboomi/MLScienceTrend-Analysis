@@ -22,7 +22,7 @@ tqdm==4.62.*
 types-requests==2.25.*
 wordcloud==1.8.*
 pyspark[sql]==3.1.*
-lxml==4.6.*
+lxml==4.9.1*
 kaggle==1.5.*
 spark-nlp==3.3.*
 nltk==3.6.*
