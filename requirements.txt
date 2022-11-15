@@ -26,3 +26,4 @@ lxml==4.9.1*
 kaggle==1.5.*
 spark-nlp==3.3.*
 nltk==3.6.*
+setuptools>=65.5.1 # not directly required, pinned by Snyk to avoid a vulnerability
